@@ -1,0 +1,43 @@
+# Secrets (keep .env.example committed)
+.env
+.env.*
+!.env.example
+
+# Private data: real scoreboard photos, database (see CLAUDE.md)
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Real photos anywhere outside samples/
+*.heic
+*.HEIC
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors / OS
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
