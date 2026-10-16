@@ -1,5 +1,5 @@
 {
- "note": "Hand-verified: each row recomputed frame-by-frame and matched the printed scoreboard totals. Notation: X strike, / spare, - miss, digits = pins. Frame 10 may have 3 entries.",
+ "note": "Hand-verified: each row recomputed frame-by-frame and matched the printed scoreboard totals. Notation: X strike, / spare, - miss, digits = pins. Frame 10 may have 3 entries. printed_cumulative = the 10 running totals as printed on the board.",
  "games": [
   {
    "photo": "IMG_4253",
@@ -47,7 +47,19 @@
      "7"
     ]
    ],
-   "total": 140
+   "total": 140,
+   "printed_cumulative": [
+    19,
+    39,
+    57,
+    65,
+    73,
+    82,
+    99,
+    114,
+    123,
+    140
+   ]
   },
   {
    "photo": "IMG_6093",
@@ -93,7 +105,19 @@
      "4"
     ]
    ],
-   "total": 115
+   "total": 115,
+   "printed_cumulative": [
+    10,
+    17,
+    37,
+    55,
+    63,
+    70,
+    89,
+    98,
+    107,
+    115
+   ]
   },
   {
    "photo": "IMG_7026",
@@ -138,7 +162,19 @@
      "X"
     ]
    ],
-   "total": 149
+   "total": 149,
+   "printed_cumulative": [
+    8,
+    16,
+    45,
+    64,
+    73,
+    92,
+    101,
+    109,
+    129,
+    149
+   ]
   },
   {
    "photo": "IMG_0320",
@@ -186,7 +222,19 @@
      "/"
     ]
    ],
-   "total": 121
+   "total": 121,
+   "printed_cumulative": [
+    11,
+    17,
+    37,
+    54,
+    61,
+    77,
+    86,
+    94,
+    101,
+    121
+   ]
   },
   {
    "photo": "IMG_0464",
@@ -229,7 +277,19 @@
      "3"
     ]
    ],
-   "total": 201
+   "total": 201,
+   "printed_cumulative": [
+    20,
+    48,
+    68,
+    88,
+    118,
+    144,
+    164,
+    183,
+    192,
+    201
+   ]
   },
   {
    "photo": "IMG_1582",
@@ -275,7 +335,19 @@
      "7"
     ]
    ],
-   "total": 140
+   "total": 140,
+   "printed_cumulative": [
+    17,
+    24,
+    41,
+    48,
+    67,
+    76,
+    85,
+    104,
+    123,
+    140
+   ]
   },
   {
    "photo": "IMG_3237",
@@ -322,7 +394,19 @@
      "4"
     ]
    ],
-   "total": 115
+   "total": 115,
+   "printed_cumulative": [
+    8,
+    28,
+    45,
+    52,
+    59,
+    68,
+    77,
+    95,
+    108,
+    115
+   ]
   },
   {
    "photo": "IMG_4210",
@@ -370,7 +454,19 @@
      "1"
     ]
    ],
-   "total": 136
+   "total": 136,
+   "printed_cumulative": [
+    13,
+    21,
+    38,
+    46,
+    66,
+    86,
+    100,
+    116,
+    125,
+    136
+   ]
   },
   {
    "photo": "IMG_4367",
@@ -419,7 +515,19 @@
      "7"
     ]
    ],
-   "total": 137
+   "total": 137,
+   "printed_cumulative": [
+    18,
+    27,
+    42,
+    58,
+    65,
+    80,
+    94,
+    103,
+    120,
+    137
+   ]
   },
   {
    "photo": "IMG_4724",
@@ -465,7 +573,19 @@
      "1"
     ]
    ],
-   "total": 133
+   "total": 133,
+   "printed_cumulative": [
+    17,
+    37,
+    65,
+    84,
+    93,
+    100,
+    106,
+    115,
+    124,
+    133
+   ]
   }
  ]
 }
