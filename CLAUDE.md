@@ -19,9 +19,9 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 1. **Claude reads, code computes.** The model only transcribes rolls and printed scores from a photo. All frame scores and stats are computed in `backend/app/scoring.py` and `stats.py` from stored rolls.
 2. **Every extracted game is verified.** Recompute the 10 running totals from the rolls and compare them to the board's printed running totals (`printed_cumulative`) and the printed final total. Any mismatch -> status `needs_review`.
 3. **Never guess.** An unreadable roll is stored as null plus a flag, not a best guess.
-4. **Find the user's row by name.** Exact match against the user's alias list (stored in the DB), case-insensitive after trimming whitespace. No fuzzy matching, on purpose: zero or multiple matches -> `needs_review` so the user picks the row, and the app offers to save that name as a new alias.
+4. **Find the user's row by name.** Exact match against the user's alias list (stored in the DB), case-insensitive after trimming whitespace. No fuzzy matching, on purpose: zero or multiple matches -> `needs_review` so the user picks the row, and the app offers to save that name as a new alias. Single user, local-only, no login; one global alias list.
 5. **API key stays server-side.** Read `ANTHROPIC_API_KEY` from `.env`. Never expose it to the frontend or commit it.
-6. **Photos:** HEIC must be converted to JPEG before calling the API (the API does not accept HEIC). Resize to <= 2000 px on the long edge. One photo per API request. Read the capture date and time from EXIF.
+6. **Photos:** HEIC must be converted to JPEG before calling the API (the API does not accept HEIC). Resize to <= 2000 px on the long edge. One photo per API request. Read the capture date and time from EXIF. Apply EXIF rotation before resizing, and use pillow-heif for HEIC
 
 ## Roll notation
 `X` strike, `/` spare, `-` miss (0), digits = pins. Frames 1-9 have 1-2 entries; frame 10 has 2-3. A null entry means unreadable.
@@ -45,18 +45,30 @@ Invalid notation (raise, don't repair):
 - wrong number of frames, or wrong number of entries in a frame
 - an unearned fill ball in frame 10, or a missing earned one
 
-Null handling: a frame's running total is null if any roll it needs is null, including bonus rolls borrowed from later frames, and every frame after it is null too. A null frame-10 fill ball makes only frame 10 null.
+Null handling: a frame's running total is null if any roll it needs is null, including bonus rolls borrowed from later frames, and every frame after it is null too. A null frame-10 fill ball makes only frame 10 null. Exception: a null first ball before `/` doesn't block scoring (the spare is 10 either way), but `missing_rolls(game)` still lists it so the app can prompt the user to fill it in.
+
+## Import and review
+- One game per photo. Photos may have several players, but only use the game that the user played.
+- Photos taken midgame (missing data) go to review.
+- Skip exact duplicate photos using a hash, and flag games with the same date and identical rolls.
+- No EXIF date -> ask the user. Store the capture time (for ordering) plus an editable date.
+- Claude returns JSON that matches a schema; store the raw response with the game.
+- Editing a verified game recomputes and re-checks it; Claude's original reading is kept.
+- Accuracy script (outside pytest, costs API money) runs extraction on the fixture photos and reports accuracy.
+- Set up Alembic migrations before the first real import.
+- Frontend calls the backend through a Vite proxy (no CORS).
 
 ## Game statuses
 `pending` -> `verified` | `needs_review` | `skipped` | `manual` (entered by hand, no photo)
 
 ## Stat definitions
+- Only verified and manual games count towards stats.
 - Strike % = strikes / balls thrown at a full rack (includes frame-10 fill balls)
 - Spare conversion = spares / spare chances (frames where the first ball left pins, plus frame-10 fill balls that left pins)
 - Open frame = no strike and no spare
 - Average, high, low, games played
 - Trend line = rolling average over the last 10 games
-- Order games by EXIF capture time (it has no time zone), then by photo ID as a tiebreaker. The user can edit a game's date.
+- Order games by EXIF capture time (it has no time zone), then by photo ID as a tiebreaker. The user can edit a game's date, and edit other stats.
 
 ## Testing
 - Test fixture: `backend/tests/fixtures/verified_games.json` (10 real games, hand-verified against the scoreboards). Each game has `frames`, `total`, and `printed_cumulative` (the 10 running totals printed on the board).
