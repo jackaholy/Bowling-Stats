@@ -64,10 +64,11 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 ## Stat definitions
 - Only verified and manual games count towards stats.
 - Strike % = strikes / balls thrown at a full rack (includes frame-10 fill balls)
-- Spare conversion = spares / spare chances (frames where the first ball left pins, plus frame-10 fill balls that left pins)
-- Open frame = no strike and no spare
+- Spare conversion = spares / spare chances (a ball at a full rack that left pins and was followed by another ball; so in frame 10 `X 8 1` is a chance, but the last ball of `9 / 7` is not)
+- Open frame = no strike and no spare; open % is out of all 10 frames
 - Average, high, low, games played
-- Trend line = rolling average over the last 10 games
+- Trend line = rolling average over the last 10 games, starting at game 1 (early points average the games so far)
+- `stats.py` refuses (`UnscorableGameError`) a game whose total is unknown; it never skips one silently
 - Order games by EXIF capture time (it has no time zone), then by photo ID as a tiebreaker. The user can edit a game's date, and edit other stats.
 
 ## Testing
