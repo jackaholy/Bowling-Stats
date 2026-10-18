@@ -13,6 +13,8 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 - Backend dev: `cd backend && uvicorn app.main:app --reload`
 - Backend tests: `cd backend && pytest`
 - Backend lint/types: `cd backend && ruff check . && mypy --strict app`
+- Migrate the database: `cd backend && alembic upgrade head` (creates `data/bowling.db`)
+- New migration after changing `models.py`: `cd backend && alembic revision --autogenerate -m "..."`, then read it before committing
 - Frontend dev: `cd frontend && npm run dev`
 
 ## Architecture rules (do not break these)
@@ -58,6 +60,13 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 - Set up Alembic migrations before the first real import.
 - Frontend calls the backend through a Vite proxy (no CORS).
 
+## Database (`backend/app/models.py`)
+- Tables: `alias`, `photo`, `extraction` (Claude's raw response, kept forever), `game` (current rolls in `frames`, foul/split flags in `marks`).
+- Store rolls and printed totals only; never store computed scores or stats.
+- The schema comes from Alembic migrations only, never `create_all`. SQLite foreign keys are switched on in `db.py`.
+- Our own timestamps are aware UTC; EXIF `captured_at` is naive (no time zone).
+- `BOWLING_DATABASE_URL` overrides the database location (tests use a temp file).
+
 ## Game statuses
 `pending` -> `verified` | `needs_review` | `skipped` | `manual` (entered by hand, no photo)
 
@@ -69,7 +78,7 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 - Average, high, low, games played
 - Trend line = rolling average over the last 10 games, starting at game 1 (early points average the games so far)
 - `stats.py` refuses (`UnscorableGameError`) a game whose total is unknown; it never skips one silently
-- Order games by EXIF capture time (it has no time zone), then by photo ID as a tiebreaker. The user can edit a game's date, and edit other stats.
+- Order games by `played_on` (the editable date), then by EXIF capture time for games on the same day, then by game ID. Editing a game's date moves it in the trend line. The user can edit a game's date, and edit other stats.
 
 ## Testing
 - Test fixture: `backend/tests/fixtures/verified_games.json` (10 real games, hand-verified against the scoreboards). Each game has `frames`, `total`, and `printed_cumulative` (the 10 running totals printed on the board).
