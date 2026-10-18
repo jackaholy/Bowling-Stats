@@ -9,6 +9,8 @@ requires-python = ">=3.12"
 dependencies = [
     "sqlmodel>=0.0.48",
     "alembic>=1.20",
+    "pillow>=13",
+    "pillow-heif>=1.8",
 ]
 
 [project.optional-dependencies]

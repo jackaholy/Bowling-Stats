@@ -29,7 +29,7 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 `X` strike, `/` spare, `-` miss (0), digits = pins. Frames 1-9 have 1-2 entries; frame 10 has 2-3. A null entry means unreadable.
 
 Normalize other symbols before storing:
-- `0` and `G` (gutter) -> `-`
+- `0`, `G` (gutter), `·` and `.` (some boards show a miss as a dot) -> `-`
 - `F` (foul) -> `-` plus a `foul` flag on that roll
 - Circled digits (a split) -> the digit, plus `split: true` on that frame's first ball. Scoring ignores the flag; it exists for future split stats.
 
@@ -50,7 +50,8 @@ Invalid notation (raise, don't repair):
 Null handling: a frame's running total is null if any roll it needs is null, including bonus rolls borrowed from later frames, and every frame after it is null too. A null frame-10 fill ball makes only frame 10 null. Exception: a null first ball before `/` doesn't block scoring (the spare is 10 either way), but `missing_rolls(game)` still lists it so the app can prompt the user to fill it in.
 
 ## Import and review
-- One game per photo. Photos may have several players, but only use the game that the user played.
+- One game per photo. Photos may have several players, but only use the game that the user played. Ignore team-total rows (e.g. "9 Team").
+- `backend/app/photos.py` turns original bytes into the API-ready JPEG (pure, no I/O). The JPEG has no EXIF, so GPS never leaves the machine. Only EXIF DateTimeOriginal/DateTimeDigitized count as the capture time.
 - Photos taken midgame (missing data) go to review.
 - Skip exact duplicate photos using a hash, and flag games with the same date and identical rolls.
 - No EXIF date -> ask the user. Store the capture time (for ordering) plus an editable date.
