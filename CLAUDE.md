@@ -15,6 +15,7 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 - Backend lint/types: `cd backend && ruff check . && mypy --strict app`
 - Migrate the database: `cd backend && alembic upgrade head` (creates `data/bowling.db`)
 - New migration after changing `models.py`: `cd backend && alembic revision --autogenerate -m "..."`, then read it before committing
+- Extraction accuracy (calls the API, ~$0.05/photo): `cd backend && .venv/bin/python scripts/eval_extraction.py`; re-score a saved run for free with `--rescore ../data/eval/<run>`
 - Frontend dev: `cd frontend && npm run dev`
 
 ## Architecture rules (do not break these)
@@ -56,6 +57,8 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 - Skip exact duplicate photos using a hash, and flag games with the same date and identical rolls.
 - No EXIF date -> ask the user. Store the capture time (for ordering) plus an editable date.
 - Claude returns JSON that matches a schema; store the raw response with the game.
+- `extraction.py` makes the one API call (model `claude-opus-5-5`, override with `BOWLING_MODEL`; effort `medium`; server-side refusal fallback on). Claude reports every row's marks exactly as printed; `board.py` (pure) normalizes them, matches the alias, and verifies.
+- A game is `verified` only if every printed running total and the final total match the computed scores.
 - Editing a verified game recomputes and re-checks it; Claude's original reading is kept.
 - Accuracy script (outside pytest, costs API money) runs extraction on the fixture photos and reports accuracy.
 - Set up Alembic migrations before the first real import.
