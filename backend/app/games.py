@@ -2,11 +2,19 @@
 
 from sqlmodel import Session, col, select
 
-from app.board import GameDraft, read_board
+from app.board import BoardReading, GameDraft, draft_for_row, read_board, verify
 from app.extraction import reading_from_raw
-from app.models import Alias, Extraction, Game, GameStatus, Photo
+from app.models import Alias, Extraction, Game, GameStatus, Photo, alias_key
+from app.scoring import FRAMES, InvalidGameError, game_total, validate
+from app.scoring import Game as Rolls
 
 COUNTED = (GameStatus.VERIFIED, GameStatus.MANUAL)
+UNCONFIRMED = "matched by the name"  # a confirm-name match stays in review until the row is picked
+PICK_ROW = "pick which row is you"
+
+
+class GameRuleError(ValueError):
+    """An edit the rules don't allow; the message is shown to the user."""
 
 
 def alias_keys(session: Session) -> set[str]:
@@ -96,3 +104,69 @@ def ordered_games(session: Session, statuses: tuple[GameStatus, ...] | None = No
         col(Game.id),
     )
     return list(session.exec(statement).all())
+
+
+def reading_for(session: Session, game: Game) -> BoardReading | None:
+    """Claude's stored reading of the game's photo, if there is one."""
+    if game.extraction_id is None:
+        return None
+    extraction = session.get(Extraction, game.extraction_id)
+    return reading_from_raw(extraction.raw_response) if extraction else None
+
+
+def recheck(session: Session, game: Game) -> None:
+    """Re-verify a photo game after an edit. Manual and skipped games keep their status."""
+    if game.status in (GameStatus.MANUAL, GameStatus.SKIPPED):
+        return
+    if game.frames is None:
+        game.status = GameStatus.NEEDS_REVIEW
+        game.review_reasons = game.review_reasons or [PICK_ROW]
+        return
+    unconfirmed = [r for r in game.review_reasons if r.startswith(UNCONFIRMED)]
+    printed = game.printed_cumulative or [None] * FRAMES
+    reasons = unconfirmed + verify(game.frames, printed, game.printed_total)
+    reasons += database_checks(session, game)
+    game.review_reasons = reasons
+    game.status = GameStatus.NEEDS_REVIEW if reasons else GameStatus.VERIFIED
+
+
+def pick_row(session: Session, game: Game, row_index: int, save_alias: bool) -> None:
+    """Use the row the user picked (this also confirms a confirm-name match)."""
+    reading = reading_for(session, game)
+    if reading is None:
+        raise GameRuleError("this game has no reading from Claude to pick a row from")
+    if not 0 <= row_index < len(reading.rows):
+        raise GameRuleError(f"the board has no row {row_index}")
+    if save_alias:
+        name = reading.rows[row_index].name
+        if alias_key(name) and alias_key(name) not in alias_keys(session):
+            session.add(Alias.of(name))
+            session.flush()
+    if game.status is GameStatus.SKIPPED:
+        game.status = GameStatus.NEEDS_REVIEW
+    apply_draft(session, game, draft_for_row(reading, row_index))
+
+
+def skip(game: Game) -> None:
+    if game.photo_id is None:
+        raise GameRuleError("manual games can be deleted instead of skipped")
+    game.status = GameStatus.SKIPPED
+
+
+def unskip(session: Session, game: Game) -> None:
+    if game.status is not GameStatus.SKIPPED:
+        return
+    game.status = GameStatus.NEEDS_REVIEW
+    if game.frames is None:
+        game.review_reasons = [PICK_ROW]
+    recheck(session, game)
+
+
+def check_manual_rolls(frames: Rolls) -> None:
+    """Hand-entered games must be valid and scorable: there are no printed totals to check."""
+    try:
+        validate(frames)
+    except InvalidGameError as error:
+        raise GameRuleError(f"the rolls don't form a valid game ({error})") from error
+    if game_total(frames) is None:
+        raise GameRuleError("fill in every roll that affects the score")
