@@ -1,6 +1,4 @@
-from collections.abc import Iterator
 from datetime import UTC, date, datetime
-from pathlib import Path
 
 import pytest
 from alembic import command
@@ -11,30 +9,7 @@ from sqlalchemy import Engine, inspect, text
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlmodel import Session, SQLModel, select
 
-from app.db import make_engine
 from app.models import Alias, Extraction, Game, GameStatus, Photo, alias_key
-
-ALEMBIC_INI = Path(__file__).parents[1] / "alembic.ini"
-
-
-def alembic_config(url: str) -> Config:
-    config = Config(str(ALEMBIC_INI))
-    config.set_main_option("sqlalchemy.url", url)
-    return config
-
-
-@pytest.fixture
-def db_url(tmp_path: Path) -> str:
-    url = f"sqlite:///{tmp_path / 'test.db'}"
-    command.upgrade(alembic_config(url), "head")
-    return url
-
-
-@pytest.fixture
-def engine(db_url: str) -> Iterator[Engine]:
-    engine = make_engine(db_url)
-    yield engine
-    engine.dispose()
 
 
 def add_photo(session: Session, sha256: str = "abc") -> Photo:
@@ -49,8 +24,8 @@ def test_migrations_match_models(engine: Engine) -> None:
         assert compare_metadata(MigrationContext.configure(connection), SQLModel.metadata) == []
 
 
-def test_downgrade_removes_every_table(db_url: str, engine: Engine) -> None:
-    command.downgrade(alembic_config(db_url), "base")
+def test_downgrade_removes_every_table(alembic_cfg: Config, engine: Engine) -> None:
+    command.downgrade(alembic_cfg, "base")
     assert inspect(engine).get_table_names() == ["alembic_version"]
 
 
