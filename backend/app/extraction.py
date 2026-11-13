@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import anthropic
-from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
+from anthropic.types.beta import BetaMessage, BetaMessageParam, BetaOutputConfigParam
 from pydantic import ValidationError
 
 from app.board import BoardReading
@@ -34,6 +34,13 @@ series totals, ball speed, handicap or the game number.
 
 If a mark or number is unclear (glare, blur, cut off, ambiguous), use null instead of your best \
 guess. A null is shown to the user to fix; a wrong guess may never be caught."""
+
+
+def reading_from_raw(raw_response: str) -> BoardReading:
+    """Re-read a stored raw response, so stored photos can be re-checked without a new API call."""
+    message = BetaMessage.model_validate_json(raw_response)
+    text = next(block.text for block in message.content if block.type == "text")
+    return BoardReading.model_validate_json(text)
 
 
 class ExtractionError(RuntimeError):
