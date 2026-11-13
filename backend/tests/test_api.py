@@ -214,3 +214,12 @@ def test_root_redirects_to_api_docs(api: TestClient) -> None:
     response = api.get("/", follow_redirects=False)
     assert response.status_code == 307
     assert response.headers["location"] == "/docs"
+
+
+def test_rematch_after_adding_alias(api: TestClient) -> None:
+    game = upload(api, make_jpeg(taken=TAKEN))["game"]
+    assert game["status"] == "needs_review"
+    assert api.post("/api/games/rematch").json() == []
+    add_alias(api, "Jack")
+    changed = api.post("/api/games/rematch").json()
+    assert [(g["id"], g["status"]) for g in changed] == [(game["id"], "verified")]
