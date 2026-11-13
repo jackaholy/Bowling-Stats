@@ -71,6 +71,16 @@ def test_alias_match_ignores_case_and_spaces() -> None:
     draft = read_board(board(row(" JACK ", frames_of(NINES), NINES_TOTALS)), {"jack"})
     assert draft.status is GameStatus.VERIFIED
     assert draft.name_on_board == " JACK "
+    assert alias_key("Jack 1") == alias_key("jack1") == alias_key(" J ack1 ")
+
+
+def test_spaced_name_matches_alias_but_other_numbers_do_not() -> None:
+    reading = board(
+        row("Jack 2", frames_of(NINES), NINES_TOTALS), row("Jack 1", frames_of(NINES), NINES_TOTALS)
+    )
+    draft = read_board(reading, {alias_key("Jack1")})
+    assert draft.status is GameStatus.VERIFIED
+    assert draft.row_index == 1
 
 
 def test_no_matching_row_goes_to_review() -> None:
@@ -80,14 +90,47 @@ def test_no_matching_row_goes_to_review() -> None:
     assert "Usa" in draft.review_reasons[0]
 
 
-def test_several_matching_rows_go_to_review() -> None:
+def test_several_matching_rows_are_skipped() -> None:
     reading = board(
         row("Jack", frames_of(NINES), NINES_TOTALS), row("jack", frames_of(NINES), NINES_TOTALS)
     )
     draft = read_board(reading, {"jack"})
-    assert draft.status is GameStatus.NEEDS_REVIEW
+    assert draft.status is GameStatus.SKIPPED
     assert draft.row_index is None
     assert "several rows" in draft.review_reasons[0]
+
+
+def test_two_different_aliases_on_one_board_are_skipped() -> None:
+    reading = board(
+        row("J-money", frames_of(NINES), NINES_TOTALS),
+        row("Usa", frames_of(NINES), NINES_TOTALS),
+        row("Jack", frames_of(NINES), NINES_TOTALS),
+    )
+    draft = read_board(reading, {"jack", "j-money", "can"})
+    assert draft.status is GameStatus.SKIPPED
+    assert draft.frames is None
+    assert draft.review_reasons == [
+        "several rows match your names (J-money, Jack); skipped, enter it by hand"
+    ]
+
+
+def test_match_by_a_name_a_friend_might_use_needs_confirming() -> None:
+    reading = board(
+        row("Usa", frames_of(NINES), NINES_TOTALS), row(" Nick ", frames_of(NINES), NINES_TOTALS)
+    )
+    draft = read_board(reading, {"nick", "jack"}, frozenset({"nick"}))
+    assert draft.status is GameStatus.NEEDS_REVIEW
+    assert draft.review_reasons == [
+        "matched by the name 'Nick', which a friend might use; confirm it's you"
+    ]
+    assert draft.row_index == 1
+    assert draft.frames == frames_of(NINES)  # ready to confirm, nothing to retype
+    assert draft_for_row(reading, 1).status is GameStatus.VERIFIED  # picking the row confirms it
+
+
+def test_trusted_name_is_not_held_for_confirming() -> None:
+    reading = board(row("Jack", frames_of(NINES), NINES_TOTALS))
+    assert read_board(reading, {"jack"}, frozenset({"nick"})).status is GameStatus.VERIFIED
 
 
 def test_user_picked_row_is_verified() -> None:
