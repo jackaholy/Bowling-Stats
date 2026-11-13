@@ -23,6 +23,7 @@ from app.games import (
     pick_row,
     reading_for,
     recheck,
+    rematch_unmatched,
     skip,
     unskip,
 )
@@ -278,6 +279,12 @@ def _add_routes(app: FastAPI) -> None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     # --- aliases ------------------------------------------------------------------------------
+
+    @app.post("/api/games/rematch")
+    def rematch(session: SessionDep) -> list[GameOut]:
+        """Re-match games with no row picked against the current aliases (free, no API calls).
+        Returns the games that changed."""
+        return [GameOut(**_game_out(session, game)) for game in rematch_unmatched(session)]
 
     @app.get("/api/aliases")
     def list_aliases(session: SessionDep) -> list[AliasOut]:
