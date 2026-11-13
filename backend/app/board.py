@@ -4,7 +4,7 @@ Claude transcribes marks exactly as printed (`BoardReading`). Code normalizes th
 user's row by alias, and checks the rolls against every printed total.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -63,17 +63,31 @@ def matching_rows(reading: BoardReading, alias_keys: set[str]) -> list[int]:
     return [i for i, row in enumerate(reading.rows) if alias_key(row.name) in alias_keys]
 
 
-def read_board(reading: BoardReading, alias_keys: set[str]) -> GameDraft:
-    """Find the user's row by alias and verify it; zero or several matches go to review."""
+def read_board(
+    reading: BoardReading, alias_keys: set[str], confirm_keys: frozenset[str] = frozenset()
+) -> GameDraft:
+    """Find the user's row by alias and verify it. No match goes to review, and so does a match
+    by a name in `confirm_keys` (one a friend might also use); several matches are skipped."""
     matches = matching_rows(reading, alias_keys)
     if len(matches) == 1:
-        return draft_for_row(reading, matches[0])
-    if not matches:
-        names = ", ".join(row.name for row in reading.rows) or "none"
-        reason = f"no row matches your names (rows on the board: {names})"
-    else:
+        draft = draft_for_row(reading, matches[0])
+        name = reading.rows[matches[0]].name.strip()
+        if alias_key(name) in confirm_keys:
+            reason = f"matched by the name {name!r}, which a friend might use; confirm it's you"
+            return replace(
+                draft,
+                status=GameStatus.NEEDS_REVIEW,
+                review_reasons=[reason, *draft.review_reasons],
+            )
+        return draft
+    if matches:
+        # Several of the user's names in different rows: can't tell which is theirs. Skipped,
+        # so the user can enter it by hand.
         names = ", ".join(reading.rows[i].name for i in matches)
-        reason = f"several rows match your names: {names}"
+        reason = f"several rows match your names ({names}); skipped, enter it by hand"
+        return GameDraft(status=GameStatus.SKIPPED, review_reasons=[reason])
+    names = ", ".join(row.name for row in reading.rows) or "none"
+    reason = f"no row matches your names (rows on the board: {names})"
     return GameDraft(status=GameStatus.NEEDS_REVIEW, review_reasons=[reason])
 
 
@@ -93,7 +107,7 @@ def draft_for_row(reading: BoardReading, row_index: int) -> GameDraft:
                 reasons.append(f"frame {i + 1} ball {b + 1}: {problem}")
         frames.append(rolls)
     printed = [frame.total for frame in row.frames]
-    reasons += _verify(frames, printed, row.final_total)
+    reasons += verify(frames, printed, row.final_total)
     return GameDraft(
         status=GameStatus.NEEDS_REVIEW if reasons else GameStatus.VERIFIED,
         review_reasons=reasons,
@@ -127,7 +141,8 @@ def _normalize(ball: BallReading) -> tuple[str | None, list[str], str | None]:
     return None, [], f"unrecognized mark {ball.mark!r}"
 
 
-def _verify(frames: Game, printed: list[int | None], final_total: int | None) -> list[str]:
+def verify(frames: Game, printed: list[int | None], final_total: int | None) -> list[str]:
+    """Why the rolls can't be verified against the printed totals; empty means verified."""
     if len(frames) != FRAMES or any(not frame for frame in frames):
         return ["the game looks unfinished (some frames have no balls)"]
     try:
