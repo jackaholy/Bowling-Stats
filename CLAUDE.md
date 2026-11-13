@@ -10,7 +10,7 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 
 ## Commands (update as the project is scaffolded)
 - Backend setup: `cd backend && python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
-- Backend dev: `cd backend && uvicorn app.main:app --reload`
+- Backend dev: `cd backend && .venv/bin/uvicorn app.main:app --reload` (API under `/api`, interactive docs at http://127.0.0.1:8000/docs)
 - Backend tests: `cd backend && pytest`
 - Backend lint/types: `cd backend && ruff check . && mypy --strict app`
 - Migrate the database: `cd backend && alembic upgrade head` (creates `data/bowling.db`)
@@ -64,6 +64,7 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 - Accuracy script (outside pytest, costs API money) runs extraction on the fixture photos and reports accuracy.
 - Set up Alembic migrations before the first real import.
 - Frontend calls the backend through a Vite proxy (no CORS).
+- `app/api.py` holds every route; rules that need the database live in `app/games.py` so they stay testable. A game becomes `verified` again only through re-checking; a confirm-name match stays in review until the row is picked. Only manual games can be deleted; photo games are skipped.
 
 ## Database (`backend/app/models.py`)
 - Tables: `alias`, `photo`, `extraction` (Claude's raw response, kept forever), `game` (current rolls in `frames`, foul/split flags in `marks`).
