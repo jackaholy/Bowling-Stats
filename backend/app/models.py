@@ -18,8 +18,13 @@ def utc_now() -> datetime:
 
 
 def alias_key(name: str) -> str:
-    """How names on the board are matched against aliases: trimmed, case-insensitive."""
-    return name.strip().casefold()
+    """How names on the board are matched against aliases: case-insensitive, ignoring all
+    spaces ("Jack 1" matches "Jack1"). Otherwise exact: no fuzzy matching."""
+    return "".join(name.split()).casefold()
+
+
+# Store Python None as SQL NULL (not JSON "null") so `IS NULL` queries find it.
+_NULLABLE_JSON = sa.JSON(none_as_null=True)
 
 
 class GameStatus(StrEnum):
@@ -34,10 +39,13 @@ class Alias(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     key: str = Field(unique=True)
+    # A name a friend might also use (e.g. a real first name): a game matched only by this
+    # name goes to review so the user confirms the row is theirs.
+    confirm: bool = Field(default=False, sa_column_kwargs={"server_default": sa.false()})
 
     @classmethod
-    def of(cls, name: str) -> "Alias":
-        return cls(name=name.strip(), key=alias_key(name))
+    def of(cls, name: str, confirm: bool = False) -> "Alias":
+        return cls(name=name.strip(), key=alias_key(name), confirm=confirm)
 
 
 class Photo(SQLModel, table=True):
@@ -74,9 +82,9 @@ class Game(SQLModel, table=True):
     )
     played_on: date | None = None  # editable; starts as the photo's capture date
     name_on_board: str | None = None
-    frames: list[list[str | None]] | None = Field(default=None, sa_type=sa.JSON)
+    frames: list[list[str | None]] | None = Field(default=None, sa_type=_NULLABLE_JSON)
     marks: list[dict[str, Any]] = Field(default_factory=list, sa_type=sa.JSON)  # foul/split
-    printed_cumulative: list[int | None] | None = Field(default=None, sa_type=sa.JSON)
+    printed_cumulative: list[int | None] | None = Field(default=None, sa_type=_NULLABLE_JSON)
     printed_total: int | None = None
     review_reasons: list[str] = Field(default_factory=list, sa_type=sa.JSON)
     created_at: datetime = Field(default_factory=utc_now)
