@@ -17,7 +17,8 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 - New migration after changing `models.py`: `cd backend && alembic revision --autogenerate -m "..."`, then read it before committing
 - Bulk import (calls the API, ~$0.05/new photo; asks first): `cd backend && .venv/bin/python scripts/import_photos.py [FOLDER] --alias NAME ...` (FOLDER defaults to `data/inbox`). Add aliases later and re-match for free with `--rematch-only --alias NAME`
 - Extraction accuracy (calls the API, ~$0.05/photo): `cd backend && .venv/bin/python scripts/eval_extraction.py`; re-score a saved run for free with `--rescore ../data/eval/<run>`
-- Frontend dev: `cd frontend && npm run dev`
+- Frontend dev: `cd frontend && npm run dev` (http://127.0.0.1:5173; needs the backend running on :8000)
+- Frontend checks: `cd frontend && npx tsc -b && npm run lint`
 
 ## Architecture rules (do not break these)
 1. **Claude reads, code computes.** The model only transcribes rolls and printed scores from a photo. All frame scores and stats are computed in `backend/app/scoring.py` and `stats.py` from stored rolls.
@@ -72,6 +73,11 @@ Null handling: a frame's running total is null if any roll it needs is null, inc
 - The schema comes from Alembic migrations only, never `create_all`. SQLite foreign keys are switched on in `db.py`.
 - Our own timestamps are aware UTC; EXIF `captured_at` is naive (no time zone).
 - `BOWLING_DATABASE_URL` overrides the database location (tests use a temp file).
+
+## Frontend (`frontend/`)
+- Vite 6 (Node 20.18 is too old for Vite 7), React 19, TypeScript strict, Recharts 2. Pages: Review, Stats, All games, Add game, Upload, Your names (hash routes like `#stats`).
+- `src/api.ts` mirrors `backend/app/schemas.py`; keep them in sync. The frontend never computes scores: it shows the backend's, and greys them out ("Save to recompute") while rolls are edited.
+- Chart colors follow the dataviz reference palette (`src/index.css` tokens, light and dark). Recharts needs real color values, so `useThemeColors` reads the CSS tokens.
 
 ## Game statuses
 `pending` -> `verified` | `needs_review` | `skipped` | `manual` (entered by hand, no photo)
