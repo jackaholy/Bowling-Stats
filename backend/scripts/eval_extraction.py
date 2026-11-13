@@ -25,7 +25,7 @@ from anthropic.types.beta import BetaMessage
 
 from app.board import BoardReading, GameDraft, draft_for_row, read_board
 from app.config import DATA_DIR, extraction_model
-from app.extraction import ExtractionError, extract_board
+from app.extraction import ExtractionError, extract_board, reading_from_raw
 from app.models import GameStatus, alias_key
 from app.photos import prepare_photo
 
@@ -100,12 +100,6 @@ def compare(game: dict[str, Any], draft: GameDraft, result: Result) -> None:
 
 def fmt(frame: Sequence[str | None]) -> str:
     return " ".join("?" if r is None else r for r in frame) or "(empty)"
-
-
-def reading_from_raw(raw: str) -> BoardReading:
-    message = BetaMessage.model_validate_json(raw)
-    text = next(b.text for b in message.content if b.type == "text")
-    return BoardReading.model_validate_json(text)
 
 
 def run_live(game: dict[str, Any], model: str, out: Path, alias_keys: set[str]) -> Result:
