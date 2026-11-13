@@ -15,6 +15,7 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 - Backend lint/types: `cd backend && ruff check . && mypy --strict app`
 - Migrate the database: `cd backend && alembic upgrade head` (creates `data/bowling.db`)
 - New migration after changing `models.py`: `cd backend && alembic revision --autogenerate -m "..."`, then read it before committing
+- Bulk import (calls the API, ~$0.05/new photo; asks first): `cd backend && .venv/bin/python scripts/import_photos.py [FOLDER] --alias NAME ...` (FOLDER defaults to `data/inbox`). Add aliases later and re-match for free with `--rematch-only --alias NAME`
 - Extraction accuracy (calls the API, ~$0.05/photo): `cd backend && .venv/bin/python scripts/eval_extraction.py`; re-score a saved run for free with `--rescore ../data/eval/<run>`
 - Frontend dev: `cd frontend && npm run dev`
 
@@ -22,7 +23,7 @@ Web app that imports photos of bowling scoreboards, reads the user's row with th
 1. **Claude reads, code computes.** The model only transcribes rolls and printed scores from a photo. All frame scores and stats are computed in `backend/app/scoring.py` and `stats.py` from stored rolls.
 2. **Every extracted game is verified.** Recompute the 10 running totals from the rolls and compare them to the board's printed running totals (`printed_cumulative`) and the printed final total. Any mismatch -> status `needs_review`.
 3. **Never guess.** An unreadable roll is stored as null plus a flag, not a best guess.
-4. **Find the user's row by name.** Exact match against the user's alias list (stored in the DB), case-insensitive after trimming whitespace. No fuzzy matching, on purpose: zero or multiple matches -> `needs_review` so the user picks the row, and the app offers to save that name as a new alias. Single user, local-only, no login; one global alias list.
+4. **Find the user's row by name.** Exact match against the user's alias list (stored in the DB), case-insensitive and ignoring all spaces ("Jack 1" matches "Jack1"). No fuzzy matching, on purpose: zero matches -> `needs_review` so the user picks the row, and the app offers to save that name as a new alias. Several matches (the user's names on different rows) -> `skipped`, listed so the user can enter that game by hand. Single user, local-only, no login; one global alias list. An alias with `confirm` set (a name a friend might also use, e.g. a real first name) also sends its single match to `needs_review`, so a friend's game is never logged as the user's; picking the row confirms it.
 5. **API key stays server-side.** Read `ANTHROPIC_API_KEY` from `.env`. Never expose it to the frontend or commit it.
 6. **Photos:** HEIC must be converted to JPEG before calling the API (the API does not accept HEIC). Resize to <= 2000 px on the long edge. One photo per API request. Read the capture date and time from EXIF. Apply EXIF rotation before resizing, and use pillow-heif for HEIC
 
